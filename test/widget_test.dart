@@ -18,6 +18,6 @@ void main() {
     // Verify that login screen is displayed.
     expect(find.text('Callahan'), findsOneWidget);
     expect(find.text('Phone Number'), findsOneWidget);
-    expect(find.text('Password'), findsOneWidget);
+    expect(find.text('Send Verification Code'), findsOneWidget);
   });
 }

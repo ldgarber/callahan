@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/data_service.dart';
+import '../widgets/sms_verification_dialog.dart';
 import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -10,37 +11,58 @@ class AuthScreen extends StatefulWidget {
 
 class _AuthScreenState extends State<AuthScreen> {
   final _phoneController = TextEditingController();
-  final _passwordController = TextEditingController();
   final _dataService = DataService();
   bool _isLoading = false;
 
-  void _login() async {
+  void _sendVerificationCode() async {
+    if (_phoneController.text.trim().isEmpty) {
+      _showError('Please enter a phone number');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
-    // Simulate network delay for better UX
-    await Future.delayed(Duration(milliseconds: 800));
+    try {
+      final verificationCode = await _dataService.sendVerificationCode(_phoneController.text.trim());
+      
+      setState(() {
+        _isLoading = false;
+      });
 
-    if (await _dataService.login(_phoneController.text, _passwordController.text)) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Invalid credentials'),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      // Show verification dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => SmsVerificationDialog(
+          phoneNumber: _phoneController.text.trim(),
+          verificationCode: verificationCode,
+          onVerificationSuccess: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => HomeScreen()),
+            );
+          },
         ),
       );
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      _showError('Failed to send verification code');
     }
+  }
 
-    setState(() {
-      _isLoading = false;
-    });
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Theme.of(context).colorScheme.error,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
   }
 
   @override
@@ -163,25 +185,14 @@ class _AuthScreenState extends State<AuthScreen> {
                               hintText: '+1 (555) 123-4567',
                             ),
                           ),
-                          SizedBox(height: 20),
-                          
-                          // Password Field
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              prefixIcon: Icon(Icons.lock_outline),
-                            ),
-                          ),
                           SizedBox(height: 32),
                           
-                          // Login Button
+                          // Send Code Button
                           SizedBox(
                             width: double.infinity,
                             height: 56,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
+                              onPressed: _isLoading ? null : _sendVerificationCode,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Color(0xFF3B82F6),
                                 shape: RoundedRectangleBorder(
@@ -198,7 +209,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                       ),
                                     )
                                   : Text(
-                                      'Sign In',
+                                      'Send Verification Code',
                                       style: GoogleFonts.poppins(
                                         fontSize: 16,
                                         fontWeight: FontWeight.w600,
@@ -230,7 +241,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 SizedBox(width: 12),
                                 Expanded(
                                   child: Text(
-                                    'Enter any phone number and password to sign in',
+                                    'Enter any phone number to receive a verification code',
                                     style: GoogleFonts.poppins(
                                       fontSize: 12,
                                       color: Color(0xFF94A3B8),
